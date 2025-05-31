@@ -22,9 +22,11 @@ class ManipulateDrawer(Kitchen):
         self.drawer_id = drawer_id
         assert behavior in ["open", "close"]
         self.behavior = behavior
+        # pdb.set_trace()
         super().__init__(*args, **kwargs)
 
     def _load_model(self):
+
         super()._load_model()
         robot_model = self.robots[0].robot_model
         x_ofs = (self.drawer.width / 2) + 0.3

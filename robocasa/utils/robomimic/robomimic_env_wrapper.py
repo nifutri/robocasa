@@ -395,6 +395,7 @@ class EnvRobocasa:
         camera_height,
         camera_width,
         reward_shaping,
+        is_dagger_data,
         **kwargs,
     ):
         """
@@ -445,6 +446,16 @@ class EnvRobocasa:
             }
         }
         ObsUtils.initialize_obs_utils_with_obs_specs(obs_modality_specs)
+
+        # if is_dagger_data:
+        # if 'env_version' in kwargs, remove
+        # kwargs = kwargs['env_kwargs']
+        # if "env_version" in kwargs:
+        #     del kwargs["env_version"]
+        # if 'type' in kwargs:
+        #     del kwargs['type']
+        # if "env_name" in kwargs:
+        #     del kwargs["env_name"]
 
         # note that @postprocess_visual_obs is False since this env's images will be written to a dataset
         return cls(

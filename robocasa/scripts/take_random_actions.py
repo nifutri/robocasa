@@ -19,7 +19,6 @@ import imageio
 import mujoco
 import numpy as np
 import robosuite
-import pdb
 
 # from robosuite import load_controller_config
 from robosuite.controllers import load_composite_controller_config
@@ -30,6 +29,7 @@ import robocasa
 import robocasa.macros as macros
 from robocasa.models.fixtures import FixtureType
 from robocasa.utils.robomimic.robomimic_dataset_utils import convert_to_robomimic_format
+import pdb
 
 
 def is_empty_input_spacemouse(action_dict):
@@ -125,6 +125,15 @@ def collect_human_trajectory(
             break
 
         action_dict = deepcopy(input_ac_dict)
+        # pdb.set_trace()
+        # add noise to action_dict: dict_keys(['right_abs', 'right_delta', 'right_gripper', 'base', 'base_mode'])
+        action_dict["right_abs"] += np.random.normal(
+            0, 1, action_dict["right_abs"].shape
+        )
+        action_dict["right_delta"] += np.random.normal(
+            0, 1, action_dict["right_delta"].shape
+        )
+        action_dict["base"] += np.random.normal(0, 1, action_dict["base"].shape)
 
         # set arm actions
         for arm in active_robot.arms:
@@ -136,13 +145,13 @@ def collect_human_trajectory(
             else:
                 raise ValueError
 
-        if is_empty_input_spacemouse(action_dict):
-            if not nonzero_ac_seen:
-                if render:
-                    env.render()
-                continue
-        else:
-            nonzero_ac_seen = True
+        # if is_empty_input_spacemouse(action_dict):
+        #     if not nonzero_ac_seen:
+        #         if render:
+        #             env.render()
+        #         continue
+        # else:
+        nonzero_ac_seen = True
 
         # Maintain gripper state for each robot but only update the active robot with action
         env_action = [
@@ -151,7 +160,6 @@ def collect_human_trajectory(
         ]
         env_action[device.active_robot] = active_robot.create_action_vector(action_dict)
         env_action = np.concatenate(env_action)
-        # import pdb; pdb.set_trace()
 
         # Run environment step
         obs, _, _, _ = env.step(env_action)
@@ -288,203 +296,6 @@ def gather_demonstrations_as_hdf5(directory, out_dir, env_info, excluded_episode
         # else:
         #     pass
         #     # print("Demonstration is unsuccessful and has NOT been saved")
-
-    print("{} successful demos so far".format(num_eps))
-
-    if num_eps == 0:
-        f.close()
-        return
-
-    # write dataset attributes (metadata)
-    now = datetime.datetime.now()
-    grp.attrs["date"] = "{}-{}-{}".format(now.month, now.day, now.year)
-    grp.attrs["time"] = "{}:{}:{}".format(now.hour, now.minute, now.second)
-    grp.attrs["robocasa_version"] = robocasa.__version__
-    grp.attrs["robosuite_version"] = robosuite.__version__
-    grp.attrs["mujoco_version"] = mujoco.__version__
-    grp.attrs["env"] = env_name
-    grp.attrs["env_info"] = env_info
-
-    f.close()
-
-    return hdf5_path
-
-
-def gather_dagger_demonstrations_as_hdf5(
-    directory, out_dir, env_info, excluded_episodes=None
-):
-    """
-    Gathers the demonstrations saved in @directory into a
-    single hdf5 file.
-    The strucure of the hdf5 file is as follows.
-    data (group)
-        date (attribute) - date of collection
-        time (attribute) - time of collection
-        repository_version (attribute) - repository version used during collection
-        env (attribute) - environment name on which demos were collected
-        demo1 (group) - every demonstration has a group
-            model_file (attribute) - model xml string for demonstration
-            states (dataset) - flattened mujoco states
-            actions (dataset) - actions applied during demonstration
-        demo2 (group)
-        ...
-    Args:
-        directory (str): Path to the directory containing raw demonstrations.
-        out_dir (str): Path to where to store the hdf5 file.
-        env_info (str): JSON-encoded string containing environment information,
-            including controller and robot info
-    """
-
-    hdf5_path = os.path.join(out_dir, "demo.hdf5")
-    print("Saving hdf5 to", hdf5_path)
-    f = h5py.File(hdf5_path, "w")
-
-    # store some metadata in the attributes of one group
-    grp = f.create_group("data")
-
-    num_eps = 0
-    env_name = None  # will get populated at some point
-
-    for ep_directory in os.listdir(directory):
-        # print("Processing {} ...".format(ep_directory))
-        if (excluded_episodes is not None) and (ep_directory in excluded_episodes):
-            print("\tExcluding this episode!", ep_directory)
-            continue
-
-        state_paths = os.path.join(directory, ep_directory, "state_*.npz")
-        states = []
-        actions = []
-        actions_abs = []
-        acting_agents = []
-        # success = False
-
-        for state_file in sorted(glob(state_paths)):
-            # [len(np.load(state_file, allow_pickle=True)["states"]) for state_file in sorted(glob(state_paths))]
-            dic = np.load(state_file, allow_pickle=True)
-            env_name = str(dic["env"])
-
-            states.extend(dic["states"])
-
-            for ai in dic["action_infos"]:
-
-                actions.append(ai["actions"])
-                acting_agents.append(ai["dagger_acting_agent"])
-                # if ai['dagger_acting_agent']
-                if "actions_abs" in ai:
-                    actions_abs.append(ai["actions_abs"])
-            # success = success or dic["successful"]
-
-        if len(states) == 0:
-            continue
-
-        # print("Demonstration is successful and has been saved")
-        # Delete the last state. This is because when the DataCollector wrapper
-        # recorded the states and actions, the states were recorded AFTER playing that action,
-        # so we end up with an extra state at the end.
-        del states[-1]
-        assert len(states) == len(actions)
-
-        # Need to parse into a segments corresponding to human acting agents
-        segment_idx = -1
-        segment_idx_to_start_end = {}
-        segment_idx_to_data = {}
-        # pdb.set_trace()
-        try:
-            for i in range(0, len(acting_agents)):
-                actor = acting_agents[i]
-                if i == 0 and actor == "human":
-                    segment_idx += 1
-                    segment_idx_to_start_end[segment_idx] = {}
-                    segment_idx_to_data[segment_idx] = {}
-                    segment_idx_to_start_end[segment_idx]["start"] = i
-                elif i > 0 and actor == "human" and acting_agents[i - 1] != "human":
-                    # pdb.set_trace()
-                    segment_idx += 1
-                    segment_idx_to_start_end[segment_idx] = {}
-                    segment_idx_to_data[segment_idx] = {}
-                    segment_idx_to_start_end[segment_idx]["start"] = i
-                elif i > 0 and actor != "human" and acting_agents[i - 1] == "human":
-                    segment_idx_to_start_end[segment_idx]["end"] = i  # not inclusive
-                    segment_idx_to_data[segment_idx] = {
-                        "states": states[
-                            segment_idx_to_start_end[segment_idx][
-                                "start"
-                            ] : segment_idx_to_start_end[segment_idx]["end"]
-                        ],
-                        "actions": actions[
-                            segment_idx_to_start_end[segment_idx][
-                                "start"
-                            ] : segment_idx_to_start_end[segment_idx]["end"]
-                        ],
-                    }
-                    if len(actions_abs) > 0:
-                        segment_idx_to_data[segment_idx]["actions_abs"] = actions_abs[
-                            segment_idx_to_start_end[segment_idx][
-                                "start"
-                            ] : segment_idx_to_start_end[segment_idx]["end"]
-                        ]
-                elif i == len(acting_agents) - 1 and actor == "human":
-                    segment_idx_to_start_end[segment_idx]["end"] = (
-                        i + 1
-                    )  # not inclusive
-                    segment_idx_to_data[segment_idx] = {
-                        "states": states[
-                            segment_idx_to_start_end[segment_idx][
-                                "start"
-                            ] : segment_idx_to_start_end[segment_idx]["end"]
-                        ],
-                        "actions": actions[
-                            segment_idx_to_start_end[segment_idx][
-                                "start"
-                            ] : segment_idx_to_start_end[segment_idx]["end"]
-                        ],
-                    }
-                    if len(actions_abs) > 0:
-                        segment_idx_to_data[segment_idx]["actions_abs"] = actions_abs[
-                            segment_idx_to_start_end[segment_idx][
-                                "start"
-                            ] : segment_idx_to_start_end[segment_idx]["end"]
-                        ]
-        except Exception as e:
-            pdb.set_trace()
-
-        # pdb.set_trace()
-        if len(segment_idx_to_data) > 0:
-            for seg_idx in segment_idx_to_data:
-                states = segment_idx_to_data[seg_idx]["states"]
-                actions = segment_idx_to_data[seg_idx]["actions"]
-                actions_abs = segment_idx_to_data[seg_idx].get("actions_abs", [])
-
-                num_eps += 1
-                ep_data_grp = grp.create_group("demo_{}".format(num_eps))
-
-                # store model xml as an attribute
-                xml_path = os.path.join(directory, ep_directory, "model.xml")
-                with open(xml_path, "r") as f:
-                    xml_str = f.read()
-                ep_data_grp.attrs["model_file"] = xml_str
-
-                # store ep meta as an attribute
-                ep_meta_path = os.path.join(directory, ep_directory, "ep_meta.json")
-                if os.path.exists(ep_meta_path):
-                    with open(ep_meta_path, "r") as f:
-                        ep_meta = f.read()
-                    ep_data_grp.attrs["ep_meta"] = ep_meta
-
-                # write datasets for states and actions
-                ep_data_grp.create_dataset("states", data=np.array(states))
-                ep_data_grp.create_dataset("actions", data=np.array(actions))
-                if len(actions_abs) > 0:
-                    print(np.array(actions_abs).shape)
-                    ep_data_grp.create_dataset(
-                        "actions_abs", data=np.array(actions_abs)
-                    )
-
-        else:
-            # pass
-            print(
-                f"Demonstration {ep_directory} had no human actions and has NOT been saved"
-            )
 
     print("{} successful demos so far".format(num_eps))
 
@@ -666,7 +477,6 @@ if __name__ == "__main__":
     env = VisualizationWrapper(env)
 
     # Grab reference to controller config and convert it to json-encoded string
-    # pdb.set_trace()
     env_info = json.dumps(config)
 
     t_now = time.time()

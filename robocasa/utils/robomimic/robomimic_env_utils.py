@@ -239,6 +239,7 @@ def create_env_for_data_processing(
     camera_width,
     reward_shaping,
     seed=None,
+    is_dagger_data=False,
 ):
     """
     Creates environment for processing dataset observations and rewards.
@@ -282,6 +283,7 @@ def create_env_for_data_processing(
         camera_height=camera_height,
         camera_width=camera_width,
         reward_shaping=reward_shaping,
+        is_dagger_data=is_dagger_data,
         **env_kwargs,
     )
     check_env_version(env, env_meta)

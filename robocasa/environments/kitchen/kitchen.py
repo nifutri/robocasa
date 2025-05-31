@@ -41,7 +41,7 @@ from robocasa.utils.texture_swap import (
     replace_wall_texture,
 )
 from robocasa.utils.config_utils import refactor_composite_controller_config
-
+import pdb
 
 REGISTERED_KITCHEN_ENVS = {}
 
@@ -243,6 +243,8 @@ class Kitchen(ManipulationEnv, metaclass=KitchenEnvMeta):
         translucent_robot=False,
         randomize_cameras=False,
     ):
+        print("init controller_configs", controller_configs)
+
         self.init_robot_base_pos = init_robot_base_pos
 
         # object placement initializer
@@ -294,15 +296,31 @@ class Kitchen(ManipulationEnv, metaclass=KitchenEnvMeta):
         if controller_configs is not None:
             # detect if using stale controller configs (before robosuite v1.5.1) and update to new convention
             arms = REGISTERED_ROBOTS[robots[0]].arms
+            # pdb.set_trace()
             controller_configs = refactor_composite_controller_config(
                 controller_configs, robots[0], arms
             )
+            print("controller_configs after refactor", controller_configs)
+            # import pdb; pdb.set_trace()
             if robots[0] == "PandaOmron":
                 if "composite_controller_specific_configs" not in controller_configs:
+                    print(
+                        "composite_controller_specific_configs not in controller_configs"
+                    )
+                    print("using default controller configs")
+
+                    # pdb.set_trace()
                     controller_configs["composite_controller_specific_configs"] = {}
                 controller_configs["composite_controller_specific_configs"][
                     "body_part_ordering"
                 ] = ["right", "right_gripper", "base", "torso"]
+                for part_name in controller_configs["body_parts"]:
+                    controller_configs["composite_controller_specific_configs"][
+                        part_name
+                    ] = {}
+                    controller_configs["composite_controller_specific_configs"][
+                        part_name
+                    ] = controller_configs["body_parts"][part_name]
 
         super().__init__(
             robots=robots,

@@ -48,6 +48,7 @@ def refactor_composite_controller_config(controller_config, robot_type, arms):
     config_dir = pathlib.Path(robosuite.__file__).parent / "controllers/config/robots/"
     name = robot_type.lower()
     configs = os.listdir(config_dir)
+    # import pdb; pdb.set_trace()
     if f"default_{name}.json" in configs:
         new_controller_config = load_composite_controller_config(robot=name)
     else:
@@ -60,4 +61,10 @@ def refactor_composite_controller_config(controller_config, robot_type, arms):
         if "gripper" not in new_arm_config:
             new_arm_config["gripper"] = {"type": "GRIP"}
         new_controller_config["body_parts"][arm] = new_arm_config
+
+    if controller_config["control_delta"] == False:
+        for part in new_controller_config["body_parts"]:
+            new_controller_config["body_parts"][part]["control_delta"] = False
+
+    # import pdb; pdb.set_trace()
     return new_controller_config

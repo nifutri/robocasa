@@ -15,7 +15,7 @@ import traceback
 import torch
 
 import robocasa.utils.robomimic.robomimic_tensor_utils as TensorUtils
-import robocasa.utils.robomimic.robomimic_env_utils as EnvUtils
+import robocasa.utils.robomimic.dagger_robomimic_env_utils as EnvUtils
 import robocasa.utils.robomimic.robomimic_dataset_utils as DatasetUtils
 
 # from robomimic.utils.log_utils import log_warning
@@ -599,14 +599,14 @@ if __name__ == "__main__":
     parser.add_argument(
         "--camera_height",
         type=int,
-        default=256,
+        default=128,
         help="(optional) height of image observations",
     )
 
     parser.add_argument(
         "--camera_width",
         type=int,
-        default=256,
+        default=128,
         help="(optional) width of image observations",
     )
 

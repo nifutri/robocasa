@@ -1,3 +1,8 @@
+# do not add robomimic
+robomimic/
+datasets/
+datasets_first/
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]

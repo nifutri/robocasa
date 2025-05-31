@@ -33,6 +33,16 @@ def create_env(
     layout_and_style_ids=None,
     layout_ids=None,
     style_ids=None,
+    controller_configs=None,
+    translucent_robot=False,
+    has_renderer=False,
+    renderer="mjviewer",
+    has_offscreen_renderer=False,
+    use_camera_obs=False,
+    camera_depths=False,
+    ignore_done=True,
+    use_object_obs=True,
+    reward_shaping=False,
 ):
     controller_config = load_composite_controller_config(
         controller=None,
@@ -62,7 +72,7 @@ def create_env(
         translucent_robot=False,
     )
 
-    env = robosuite.make(**env_kwargs)
+    env = robosuite.environments.base.make(**env_kwargs)
     return env
 
 
