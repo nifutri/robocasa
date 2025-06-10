@@ -94,11 +94,14 @@ def load_style_config(style, fixture_config):
     # if fixture_type not in style:
     #     raise ValueError("Did not specify fixture type \"{}\" in chosen style".format(fixture_type))
     fixture_style = style.get(fixture_type, "default")
+    # print("fixture_style", fixture_style)
 
     yaml_path = xml_path_completion(
         f"fixtures/fixture_registry/{fixture_type}.yaml",
         root=robocasa.models.assets_root,
     )
+    # print("yaml_path", yaml_path)
+    # import pdb; pdb.set_trace()
     with open(yaml_path, "r") as f:
         default_configs = yaml.safe_load(f)
 
@@ -124,6 +127,10 @@ def load_style_config(style, fixture_config):
     config = default_configs["default"]
     if not isinstance(config_ids, list):
         config_ids = [config_ids]
+
+    # print("config_ids", config_ids)
+    # config_ids = ['default']
+    # import pdb; pdb.set_trace()
     for cfg_id in config_ids:
         if cfg_id in default_configs:
             # add additional arguments based on default config

@@ -1,55 +1,55 @@
 default:
-  texture: textures/wood/wood_grain_1.png
+  texture: textures/flat/white.png
   handle_type: bar
   handle_config:
-    texture: textures/metals/bright_metal.png
+    texture: textures/metals/brass.png
 
 
 #### panel textures ####
 white:
   texture: textures/flat/white.png
 black:
-  texture: textures/flat/black.png
+  texture: textures/flat/white.png
 dark_gray:
-  texture: textures/flat/dark_gray.png
+  texture: textures/flat/white.png
 gray:
-  texture: textures/flat/gray.png
+  texture: textures/flat/white.png
 light_gray:
-  texture: textures/flat/light_gray.png
+  texture: textures/flat/white.png
 lighter_gray:
-  texture: textures/flat/lighter_gray.png
+  texture: textures/flat/white.png
 blue_gray:
-  texture: textures/flat/blue_gray.png
+  texture: textures/flat/white.png
 dark_blue:
-  texture: textures/flat/dark_blue.png
+  texture: textures/flat/white.png
 light_green:
-  texture: textures/flat/light_green.png
+  texture: textures/flat/white.png
 light_blue:
-  texture: textures/flat/light_blue.png
+  texture: textures/flat/white.png
 warm_white:
-  texture: textures/flat/warm_white.png
+  texture: textures/flat/white.png
 dark_wood_parquet:
-  texture: textures/wood/dark_wood_parquet.png
+  texture: textures/flat/white.png
 light_wood_parquet:
-  texture: textures/wood/light_wood_parquet.png
+  texture: textures/flat/white.png
 warm_wood_parquet:
-  texture: textures/wood/warm_wood_parquet.png
+  texture: textures/flat/white.png
 warm_wood_grain:
-  texture: textures/wood/warm_wood_grain_2.png
+  texture: textures/flat/white.png
 walnut_wood_grain:
-  texture: textures/wood/walnut_wood_grain.png
+  texture: textures/flat/white.png
 gray_wood_grain:
-  texture: textures/wood/gray_wood_grain.png
+  texture: textures/flat/white.png
 light_wood_planks_shelves:
-  texture: textures/wood/light_wood_planks.png
+  texture: textures/flat/white.png
 dark_wood_planks_shelves:
-  texture: textures/wood/dark_wood_planks.png
+  texture: textures/flat/white.png
 rustic_wood_shelves:
-  texture: textures/wood/greenheart_wood_grain.png
+  texture: textures/flat/white.png
 wood_grain_shelves:
-  texture: textures/wood/wood_planks_2.png
+  texture: textures/flat/white.png
 wood_grain_shelves_2:
-  texture: textures/wood/wood_grain_3.png
+  texture: textures/flat/white.png
 
 
 #### panel shapes ####
@@ -84,7 +84,7 @@ handle_brass:
     texture: textures/metals/brass.png
 handle_black:
   handle_config:
-    texture: textures/flat/black.png
+    texture: textures/metals/brass.png
 handle_dark_gray:
   handle_config:
-    texture: textures/flat/dark_gray.png
+    texture: textures/metals/brass.png

@@ -992,6 +992,7 @@ class Kitchen(ManipulationEnv, metaclass=KitchenEnvMeta):
         """
         Adds new kitchen-relevant cameras to the environment. Will randomize cameras if specified.
         """
+        # import pdb; pdb.set_trace()
         self._cam_configs = CamUtils.get_robot_cam_configs(self.robots[0].name)
         if self.randomize_cameras:
             self._randomize_cameras()
@@ -999,7 +1000,7 @@ class Kitchen(ManipulationEnv, metaclass=KitchenEnvMeta):
         for (cam_name, cam_cfg) in self._cam_configs.items():
             if cam_cfg.get("parent_body", None) is not None:
                 continue
-
+            # import pdb; pdb.set_trace()
             self.mujoco_arena.set_camera(
                 camera_name=cam_name,
                 pos=cam_cfg["pos"],

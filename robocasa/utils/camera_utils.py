@@ -95,6 +95,56 @@ CAM_CONFIGS = dict(
     GR1FixedLowerBody=dict(),
 )
 
+CAM_CONFIGS_test = dict(
+    DEFAULT=dict(
+        robot0_agentview_center=dict(
+            pos=[0.0, 0.0, 0.0],
+            quat=[
+                0.636945903301239,
+                0.3325185477733612,
+                -0.3199238181114197,
+                -0.6175596117973328,
+            ],
+            parent_body="robot0_agentview_mount_center",
+        ),
+        robot0_agentview_left=dict(
+            pos=[0.0, 0.0, 0.0],
+            quat=[0.55623853, 0.29935253, -0.37678665, -0.6775092],
+            camera_attribs=dict(fovy="60"),
+            parent_body="robot0_agentview_mount_left",
+        ),
+        robot0_agentview_right=dict(
+            pos=[0.0, 0.0, 0.0],
+            quat=[
+                0.6775091886520386,
+                0.3767866790294647,
+                -0.2993525564670563,
+                -0.55623859167099,
+            ],
+            camera_attribs=dict(fovy="60"),
+            parent_body="robot0_agentview_mount_right",
+        ),
+        robot0_frontview=dict(
+            pos=[-0.50, 0, 0.95],
+            quat=[
+                0.6088936924934387,
+                0.3814677894115448,
+                -0.3673907518386841,
+                -0.5905545353889465,
+            ],
+            camera_attribs=dict(fovy="60"),
+            parent_body="mobilebase0_support",
+        ),
+        robot0_eye_in_hand=dict(
+            pos=[0.05, 0, 0],
+            quat=[0, 0.707107, 0.707107, 0],
+            parent_body="robot0_right_hand",
+        ),
+    ),
+    PandaMobile=dict(),
+    GR1FixedLowerBody=dict(),
+)
+
 
 def deep_update(d, u):
     """

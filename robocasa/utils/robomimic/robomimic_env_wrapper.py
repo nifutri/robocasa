@@ -458,6 +458,8 @@ class EnvRobocasa:
         #     del kwargs["env_name"]
 
         # note that @postprocess_visual_obs is False since this env's images will be written to a dataset
+        # print(cls)
+        # import pdb; pdb.set_trace()
         return cls(
             env_name=env_name,
             render=False,

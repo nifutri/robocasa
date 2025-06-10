@@ -6,7 +6,7 @@ holder_1:
   xml: fixtures/accessories/utensil_holders/holder_1
 
 holder_2:
-  xml: fixtures/accessories/utensil_holders/holder_2
+  xml: fixtures/accessories/utensil_holders/holder_1
 
 holder_3:
-  xml: fixtures/accessories/utensil_holders/holder_3
+  xml: fixtures/accessories/utensil_holders/holder_1

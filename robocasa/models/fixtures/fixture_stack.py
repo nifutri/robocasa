@@ -61,12 +61,37 @@ class FixtureStack:
         self.scene_configs = scene_configs
         self.scene_fixtures = scene_fixtures
         self.default_texture = default_texture
+        # self.default_texture = 0
         self.fixtures = list()
 
         if rng is not None:
             self.rng = rng
         else:
             self.rng = np.random.default_rng()
+
+        # class ConstantGenerator:
+        #     def __init__(self, shape=()):
+        #         self.value = 0
+        #         self.shape = shape
+        #         self.constant_array = np.full(shape, self.value) if shape else self.value
+
+        #     def __iter__(self):
+        #         return self
+
+        #     def __next__(self):
+        #         return self.constant_array
+
+        #     def choice(self, list_of_choices, size=None, replace=True, p=None, axis=0, shuffle=True):
+        #         """
+        #         Mimics np.random.Generator.choice but always returns the constant value.
+        #         """
+        #         # Just always return the constant value (assume it is in the list_of_choices)
+        #         constant = list_of_choices[0]
+        #         if size is None:
+        #             return constant
+        #         else:
+        #             return np.full(size, constant)
+        # self.rng = ConstantGenerator()
 
         self._create_stack()
 

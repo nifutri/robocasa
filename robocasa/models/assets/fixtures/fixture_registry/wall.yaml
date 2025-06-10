@@ -8,16 +8,16 @@ default:
     reflectance: "0.1"
 
 red_bricks:
-  texture: textures/bricks/red_bricks.png
+  texture: textures/bricks/white_bricks.png
 white_bricks:
-  texture: textures/bricks/white_bricks_2.png
+  texture: textures/bricks/white_bricks.png
   mat_attrib:
     texrepeat: "1.75 1.75"
     texuniform: "true"
     shininess: "0.01"
     reflectance: "0.1"
 playground:
-  texture: textures/albedo.png
+  texture: textures/bricks/white_bricks.png
   mat_attrib:
     texrepeat: "2 2"
     texuniform: "true"
@@ -25,23 +25,23 @@ playground:
     reflectance: "0.1"
 
 white_tiles:
-  texture: textures/tiles/white_tiles.png
+  texture: textures/bricks/white_bricks.png
   mat_attrib:
     texrepeat: "2 2"
     texuniform: "true"
     shininess: "0.01"
     reflectance: "0.1"
 white_square_tiles:
-  texture: textures/tiles/white_square_tiles.png
+  texture: textures/bricks/white_bricks.png
   mat_attrib:
     texrepeat: "1.5 1.5"
     texuniform: "true"
     shininess: "0.01"
     reflectance: "0.1"
 
-# coastal
+# # coastal
 black_square_tiles:
-  texture: textures/tiles/black_square_tiles.png
+  texture: textures/bricks/white_bricks.png
   mat_attrib:
     texrepeat: "1.5 1.5"
     texuniform: "true"
@@ -50,7 +50,7 @@ black_square_tiles:
 
 # mediterranean
 orange_square_tiles:
-  texture: textures/tiles/orange_square_tiles.png
+  texture: textures/bricks/white_bricks.png
   mat_attrib:
     texrepeat: "2 2"
     texuniform: "true"
@@ -59,7 +59,7 @@ orange_square_tiles:
 
 # traditional_2
 diamond_tiles:
-  texture: textures/tiles/diamond_tiles.png
+  texture: textures/bricks/white_bricks.png
   mat_attrib:
     texrepeat: "1.5 1.5"
     texuniform: "true"
@@ -68,22 +68,22 @@ diamond_tiles:
 
 # flat textures
 white_plaster:
-  texture: textures/flat/plaster.png
+  texture: textures/bricks/white_bricks.png
 white:
-  texture: textures/flat/white.png
+  texture: textures/bricks/white_bricks.png
 warm_white:
-  texture: textures/flat/warm_white.png
+  texture: textures/bricks/white_bricks.png
 
 concrete:
-  texture: textures/others/concrete.png
+  texture: textures/bricks/white_bricks.png
 
 # transitional_1
 diamond_marble_parquet:
-  texture: textures/tiles/diamond_marble_parquet.png
+  texture: textures/bricks/white_bricks.png
 
 # transitional_2
 diamond_white_tiles:
-  texture: textures/tiles/diamond_white_tiles.png
+  texture: textures/bricks/white_bricks.png
   mat_attrib:
     texrepeat: "5 5"
     texuniform: "true"
@@ -92,11 +92,11 @@ diamond_white_tiles:
 
 # traditional_1
 varied_marble_tiles:
-  texture: textures/tiles/varied_marble_tiles.png
+  texture: textures/bricks/white_bricks.png
 
 # modern_1
 marble:
-  texture: textures/marble/marble_2.png
+  texture: textures/bricks/white_bricks.png
   mat_attrib:
     texrepeat: "0.75 0.75"
     texuniform: "true"
@@ -105,7 +105,7 @@ marble:
 
 # modern_2
 black_marble_tiles:
-  texture: textures/tiles/black_marble_tiles.png
+  texture: textures/bricks/white_bricks.png
   mat_attrib:
     texrepeat: "0.75 0.75"
     texuniform: "true"
@@ -114,7 +114,7 @@ black_marble_tiles:
 
 # rustic
 wood_planks:
-  texture: textures/wood/wood_planks_wall.png
+  texture: textures/bricks/white_bricks.png
   mat_attrib:
     texrepeat: "1 1"
     texuniform: "true"

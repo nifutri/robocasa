@@ -5,10 +5,10 @@ simple_silver:
   xml: fixtures/hoods/simple_silver
 
 tall_stainless:
-  xml: fixtures/hoods/tall_stainless
+  xml: fixtures/hoods/simple_silver
 
 pack_1:
-  xml: fixtures/hoods/pack_1
+  xml: fixtures/hoods/simple_silver
 
 pack_2:
-  xml: fixtures/hoods/pack_2
+  xml: fixtures/hoods/simple_silver

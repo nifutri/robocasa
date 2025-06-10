@@ -143,6 +143,9 @@ def write_traj_to_file(
                     ep_data_grp.create_dataset(
                         "actions", data=np.array(traj["actions"])
                     )
+                    ep_data_grp.create_dataset(
+                        "actions_abs", data=np.array(traj["actions_abs"])
+                    )
                     ep_data_grp.create_dataset("states", data=np.array(traj["states"]))
                     ep_data_grp.create_dataset(
                         "rewards", data=np.array(traj["rewards"])
@@ -400,6 +403,7 @@ def extract_multiple_trajectories_with_error(
 
             # extract obs, rewards, dones
             actions = f["data/{}/actions".format(ep)][()]
+            actions_abs = f["data/{}/actions_abs".format(ep)][()]
 
             traj = extract_trajectory(
                 env=env,
@@ -415,6 +419,11 @@ def extract_multiple_trajectories_with_error(
                 traj["rewards"] = f["data/{}/rewards".format(ep)][()]
             if args.copy_dones:
                 traj["dones"] = f["data/{}/dones".format(ep)][()]
+
+            # copy action_abs from source file
+            # if "actions_abs" in f["data/{}".format(ep)]:
+            # import pdb; pdb.set_trace()
+            traj["actions_abs"] = actions_abs
 
             ep_grp = f["data/{}".format(ep)]
 
