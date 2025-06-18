@@ -20,7 +20,7 @@ class EnvRobocasa:
         render=False,
         render_offscreen=False,
         use_image_obs=False,
-        postprocess_visual_obs=True,
+        postprocess_visual_obs=False,
         env_lang=None,
         **kwargs,
     ):

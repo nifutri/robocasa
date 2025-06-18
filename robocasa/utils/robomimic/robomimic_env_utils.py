@@ -57,12 +57,17 @@ def get_env_type(env_meta=None, env_type=None, env=None):
 
         env (instance of EB.EnvBase): environment instance
     """
+    # print("env_meta", env_meta)
+    # print("env_type", env_type)
+    # print("env", env)
     checks = [(env_meta is not None), (env_type is not None), (env is not None)]
     assert sum(checks) == 1, "should provide only one of env_meta, env_type, env"
-    if env_meta is not None:
+    if env_meta is not None and "type" in env_meta:
         env_type = env_meta["type"]
     elif env is not None:
         env_type = env.type
+    else:
+        env_type = 1
     return env_type
 
 
@@ -171,6 +176,8 @@ def create_env(
         use_image_obs=use_image_obs,
         postprocess_visual_obs=True,
         env_lang=env_lang,
+        camera_height=256,
+        camera_width=256,
         **kwargs,
     )
     print("Created environment with name {}".format(env_name))
@@ -267,15 +274,83 @@ def create_env_for_data_processing(
     env_class = get_env_class(env_type=env_type)
 
     # remove possibly redundant values in kwargs
+    # env_kwargs = deepcopy(env_kwargs)
+    # env_kwargs = env_kwargs["env_kwargs"]
+    # env_kwargs.pop("env_name", None)
+    env_kwargs.pop("camera_names", None)
+    env_kwargs.pop("camera_height", None)
+    env_kwargs.pop("camera_width", None)
+    env_kwargs.pop("reward_shaping", None)
+    # env_kwargs.pop("env_version", None)
+    # env_kwargs.pop("type", None)
+
+    if seed is not None:
+        env_kwargs["seed"] = seed
+
+    print("env_kwargs", env_kwargs)
+
+    env = env_class.create_for_data_processing(
+        env_name=env_name,
+        camera_names=camera_names,
+        camera_height=camera_height,
+        camera_width=camera_width,
+        reward_shaping=reward_shaping,
+        is_dagger_data=is_dagger_data,
+        **env_kwargs,
+    )
+    check_env_version(env, env_meta)
+    return env
+
+
+def create_env_for_data_processing(
+    env_meta,
+    camera_names,
+    camera_height,
+    camera_width,
+    reward_shaping,
+    seed=None,
+    is_dagger_data=False,
+):
+    """
+    Creates environment for processing dataset observations and rewards.
+
+    Args:
+        env_meta (dict): environment metadata, which should be loaded from demonstration
+            hdf5 with @FileUtils.get_env_metadata_from_dataset or from checkpoint (see
+            @FileUtils.env_from_checkpoint). Contains 3 keys:
+
+                :`'env_name'`: name of environment
+                :`'type'`: type of environment, should be a value in EB.EnvType
+                :`'env_kwargs'`: dictionary of keyword arguments to pass to environment constructor
+
+        camera_names (list of st): list of camera names that correspond to image observations
+
+        camera_height (int): camera height for all cameras
+
+        camera_width (int): camera width for all cameras
+
+        reward_shaping (bool): if True, use shaped environment rewards, else use sparse task completion rewards
+    """
+    env_name = env_meta["env_name"]
+    env_type = get_env_type(env_meta=env_meta)
+    env_kwargs = env_meta["env_kwargs"]
+    env_class = get_env_class(env_type=env_type)
+
+    # remove possibly redundant values in kwargs
     env_kwargs = deepcopy(env_kwargs)
+    env_kwargs = env_kwargs["env_kwargs"]
     env_kwargs.pop("env_name", None)
     env_kwargs.pop("camera_names", None)
     env_kwargs.pop("camera_height", None)
     env_kwargs.pop("camera_width", None)
     env_kwargs.pop("reward_shaping", None)
+    env_kwargs.pop("env_version", None)
+    env_kwargs.pop("type", None)
 
     if seed is not None:
         env_kwargs["seed"] = seed
+
+    print("env_kwargs", env_kwargs)
 
     env = env_class.create_for_data_processing(
         env_name=env_name,

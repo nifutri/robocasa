@@ -287,6 +287,7 @@ class Kitchen(ManipulationEnv, metaclass=KitchenEnvMeta):
 
         # intialize cameras
         self._cam_configs = CamUtils.get_robot_cam_configs(robots[0])
+        # import pdb; pdb.set_trace()
 
         # set up currently unused variables (used in robosuite)
         self.use_object_obs = use_object_obs
@@ -1333,6 +1334,9 @@ class Kitchen(ManipulationEnv, metaclass=KitchenEnvMeta):
                 - (dict) information about the current state of the environment
         """
         reward, done, info = super()._post_action(action)
+
+        # get actions_abs
+        info["action_abs"] = self.convert_rel_to_abs_action(action)
 
         # Check if stove is turned on or not
         self.update_state()

@@ -58,7 +58,7 @@ def extract_trajectory(
         rewards=[],
         dones=[],
         actions=np.array(actions),
-        # actions_abs=[],
+        actions_abs=[],
         states=np.array(states),
         initial_state_dict=initial_state,
         datagen_info=[],
@@ -90,14 +90,14 @@ def extract_trajectory(
         done = int(done)
 
         # get the absolute action
-        # action_abs = env.base_env.convert_rel_to_abs_action(actions[t])
+        action_abs = env.base_env.convert_rel_to_abs_action(actions[t])
 
         # collect transition
         traj["obs"].append(obs)
         traj["rewards"].append(r)
         traj["dones"].append(done)
         traj["datagen_info"].append(datagen_info)
-        # traj["actions_abs"].append(action_abs)
+        traj["actions_abs"].append(action_abs)
 
     # convert list of dict to dict of list for obs dictionaries (for convenient writes to hdf5 dataset)
     traj["obs"] = TensorUtils.list_of_flat_dict_to_dict_of_list(traj["obs"])
@@ -238,7 +238,228 @@ def write_traj_to_file(
         env_meta["env_kwargs"]["generative_textures"] = "100p"
     if args.randomize_cameras:
         env_meta["env_kwargs"]["randomize_cameras"] = True
+
+    # if env_version in env_meta, delete
+    if "env_version" in env_meta:
+        del env_meta["env_version"]
+    if "env_version" in env_meta["env_kwargs"]:
+        del env_meta["env_kwargs"]["env_version"]
+    # if type in env_meta, delete
+    # if "type" in env_meta:
+    #     del env_meta["type"]
+    # if "type" in env_meta["env_kwargs"]:
+    #     del env_meta["env_kwargs"]["type"]
+
     env = EnvUtils.create_env_for_data_processing(
+        env_meta=env_meta,
+        camera_names=args.camera_names,
+        camera_height=args.camera_height,
+        camera_width=args.camera_width,
+        reward_shaping=args.shaped,
+    )
+    # env = EnvUtils.create_env_for_demo_replay_data_processing(
+    #     env_meta=env_meta,
+    #     camera_names=args.camera_names,
+    #     camera_height=args.camera_height,
+    #     camera_width=args.camera_width,
+    #     reward_shaping=args.shaped,
+    # )
+    print("total processes end {}".format(total_run.value))
+    data_grp.attrs["env_args"] = json.dumps(
+        env.serialize(), indent=4
+    )  # environment info
+    print("Wrote {} total samples to {}".format(total_samples.value, output_path))
+
+    f_out.close()
+    f.close()
+
+    DatasetUtils.extract_action_dict(dataset=output_path)
+    DatasetUtils.make_demo_ids_contiguous(dataset=output_path)
+    for num_demos in [
+        10,
+        20,
+        30,
+        40,
+        50,
+        60,
+        70,
+        75,
+        80,
+        90,
+        100,
+        125,
+        150,
+        200,
+        250,
+        300,
+        400,
+        500,
+        600,
+        700,
+        800,
+        900,
+        1000,
+        1500,
+        2000,
+        2500,
+        3000,
+        4000,
+        5000,
+        10000,
+    ]:
+        DatasetUtils.filter_dataset_size(
+            output_path,
+            num_demos=num_demos,
+        )
+
+    print("Writing has finished")
+
+    end_time = time.time()
+
+    # Calculate the elapsed time
+    elapsed_time = end_time - start_time
+
+    print(f"Time elapsed: {elapsed_time:.2f} seconds")
+    return
+
+
+def write_traj_to_file_replay_robocasa_demos(
+    args, output_path, total_samples, total_run, processes, mul_queue
+):
+    f = h5py.File(args.dataset, "r")
+    f_out = h5py.File(output_path, "w")
+    data_grp = f_out.create_group("data")
+    start_time = time.time()
+    num_processed = 0
+
+    try:
+        while (total_run.value < (processes)) or not mul_queue.empty():
+            if not mul_queue.empty():
+                num_processed = num_processed + 1
+                item = mul_queue.get()
+                ep = item[0]
+                traj = item[1]
+                process_num = item[2]
+                try:
+                    ep_data_grp = data_grp.create_group(ep)
+                    ep_data_grp.create_dataset(
+                        "actions", data=np.array(traj["actions"])
+                    )
+                    ep_data_grp.create_dataset(
+                        "actions_abs", data=np.array(traj["actions_abs"])
+                    )
+                    ep_data_grp.create_dataset("states", data=np.array(traj["states"]))
+                    ep_data_grp.create_dataset(
+                        "rewards", data=np.array(traj["rewards"])
+                    )
+                    ep_data_grp.create_dataset("dones", data=np.array(traj["dones"]))
+                    # ep_data_grp.create_dataset(
+                    #     "actions_abs", data=np.array(traj["actions_abs"])
+                    # )
+                    for k in traj["obs"]:
+                        if args.no_compress:
+                            ep_data_grp.create_dataset(
+                                "obs/{}".format(k), data=np.array(traj["obs"][k])
+                            )
+                        else:
+                            ep_data_grp.create_dataset(
+                                "obs/{}".format(k),
+                                data=np.array(traj["obs"][k]),
+                                compression="gzip",
+                            )
+                        if args.include_next_obs:
+                            if args.no_compress:
+                                ep_data_grp.create_dataset(
+                                    "next_obs/{}".format(k),
+                                    data=np.array(traj["next_obs"][k]),
+                                )
+                            else:
+                                ep_data_grp.create_dataset(
+                                    "next_obs/{}".format(k),
+                                    data=np.array(traj["next_obs"][k]),
+                                    compression="gzip",
+                                )
+
+                    if "datagen_info" in traj:
+                        for k in traj["datagen_info"]:
+                            ep_data_grp.create_dataset(
+                                "datagen_info/{}".format(k),
+                                data=np.array(traj["datagen_info"][k]),
+                            )
+
+                    # copy action dict (if applicable)
+                    if "data/{}/action_dict".format(ep) in f:
+                        action_dict = f["data/{}/action_dict".format(ep)]
+                        for k in action_dict:
+                            ep_data_grp.create_dataset(
+                                "action_dict/{}".format(k),
+                                data=np.array(action_dict[k][()]),
+                            )
+
+                    # episode metadata
+                    ep_data_grp.attrs["model_file"] = traj["initial_state_dict"][
+                        "model"
+                    ]  # model xml for this episode
+                    ep_data_grp.attrs["ep_meta"] = traj["initial_state_dict"][
+                        "ep_meta"
+                    ]  # ep meta data for this episode
+                    # if "ep_meta" in f["data/{}".format(ep)].attrs:
+                    #     ep_data_grp.attrs["ep_meta"] = f["data/{}".format(ep)].attrs["ep_meta"]
+                    ep_data_grp.attrs["num_samples"] = traj["actions"].shape[
+                        0
+                    ]  # number of transitions in this episode
+
+                    total_samples.value += traj["actions"].shape[0]
+                except Exception as e:
+                    print("++" * 50)
+                    print(
+                        f"Error at Process {process_num} on episode {ep} with \n\n {e}"
+                    )
+                    print("++" * 50)
+                    raise Exception("Write out to file has failed")
+                print(
+                    "ep {}: wrote {} transitions to group {} at process {} with {} finished. Datagen rate: {:.2f} sec/demo".format(
+                        num_processed,
+                        ep_data_grp.attrs["num_samples"],
+                        ep,
+                        process_num,
+                        total_run.value,
+                        (time.time() - start_time) / num_processed,
+                    )
+                )
+    except KeyboardInterrupt:
+        print("Control C pressed. Closing File and ending \n\n\n\n\n\n\n")
+
+    if "mask" in f:
+        f.copy("mask", f_out)
+
+    # global metadata
+    data_grp.attrs["total"] = total_samples.value
+    env_meta = DatasetUtils.get_env_metadata_from_dataset(dataset_path=args.dataset)
+    if args.generative_textures:
+        env_meta["env_kwargs"]["generative_textures"] = "100p"
+    if args.randomize_cameras:
+        env_meta["env_kwargs"]["randomize_cameras"] = True
+
+    # if env_version in env_meta, delete
+    # if "env_version" in env_meta:
+    #     del env_meta["env_version"]
+    # if "env_version" in env_meta["env_kwargs"]:
+    #     del env_meta["env_kwargs"]["env_version"]
+    # if type in env_meta, delete
+    # if "type" in env_meta:
+    #     del env_meta["type"]
+    # if "type" in env_meta["env_kwargs"]:
+    #     del env_meta["env_kwargs"]["type"]
+
+    # env = EnvUtils.create_env_for_data_processing(
+    #     env_meta=env_meta,
+    #     camera_names=args.camera_names,
+    #     camera_height=args.camera_height,
+    #     camera_width=args.camera_width,
+    #     reward_shaping=args.shaped,
+    # )
+    env = EnvUtils.create_env_for_demo_replay_data_processing(
         env_meta=env_meta,
         camera_names=args.camera_names,
         camera_height=args.camera_height,
@@ -403,7 +624,7 @@ def extract_multiple_trajectories_with_error(
 
             # extract obs, rewards, dones
             actions = f["data/{}/actions".format(ep)][()]
-            actions_abs = f["data/{}/actions_abs".format(ep)][()]
+            # actions_abs = f["data/{}/actions_abs".format(ep)][()]
 
             traj = extract_trajectory(
                 env=env,
@@ -423,7 +644,7 @@ def extract_multiple_trajectories_with_error(
             # copy action_abs from source file
             # if "actions_abs" in f["data/{}".format(ep)]:
             # import pdb; pdb.set_trace()
-            traj["actions_abs"] = actions_abs
+            # traj["actions_abs"] = actions_abs
 
             ep_grp = f["data/{}".format(ep)]
 

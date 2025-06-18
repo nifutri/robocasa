@@ -108,6 +108,7 @@ def create_hdf5_filter_key(hdf5_path, demo_keys, key_name):
         ep_lengths ([int]): list of episode lengths that corresponds to
             each demonstration in the new filter key
     """
+
     f = h5py.File(hdf5_path, "a")
     demos = sorted(list(f["data"].keys()))
 
@@ -276,6 +277,7 @@ def convert_to_robomimic_format(
 
     # switch to using solid robot
     env_info["translucent_robot"] = False
+    # import pdb; pdb.set_trace()
 
     if env_name is not None and env_info is not None:
         env_meta = dict(
