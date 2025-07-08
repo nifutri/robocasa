@@ -168,12 +168,36 @@ def create_env(
     """
 
     # note: pass @postprocess_visual_obs True, to make sure images are processed for network inputs
+    # env_class = get_env_class(env_type=env_type)
+    # print("kwargs", kwargs)
+    # env = env_class(
+    #     env_name=env_name,
+    #     render=render,
+    #     render_offscreen=render_offscreen,
+    #     camera_names= ['robot0_agentview_left_image', 'robot0_agentview_right_image', 'robot0_eye_in_hand_image'],
+    #     use_image_obs=use_image_obs,
+    #     postprocess_visual_obs=True,
+    #     env_lang=env_lang,
+    #     camera_height=256,
+    #     camera_width=256,
+    #     **kwargs,
+    # )
+    # print("Created environment with name {}".format(env_name))
+    # print("Action size is {}".format(env.action_dimension))
+    # return env
+
     env_class = get_env_class(env_type=env_type)
+    print("kwargs", kwargs)
     env = env_class(
         env_name=env_name,
-        render=render,
-        render_offscreen=render_offscreen,
-        use_image_obs=use_image_obs,
+        render=False,
+        render_offscreen=True,
+        camera_names=[
+            "robot0_agentview_left_image",
+            "robot0_agentview_right_image",
+            "robot0_eye_in_hand_image",
+        ],
+        use_image_obs=True,
         postprocess_visual_obs=True,
         env_lang=env_lang,
         camera_height=256,
@@ -277,10 +301,10 @@ def create_env_for_data_processing(
     # env_kwargs = deepcopy(env_kwargs)
     # env_kwargs = env_kwargs["env_kwargs"]
     # env_kwargs.pop("env_name", None)
-    env_kwargs.pop("camera_names", None)
-    env_kwargs.pop("camera_height", None)
-    env_kwargs.pop("camera_width", None)
-    env_kwargs.pop("reward_shaping", None)
+    # env_kwargs.pop("camera_names", None)
+    # env_kwargs.pop("camera_height", None)
+    # env_kwargs.pop("camera_width", None)
+    # env_kwargs.pop("reward_shaping", None)
     # env_kwargs.pop("env_version", None)
     # env_kwargs.pop("type", None)
 
@@ -337,8 +361,10 @@ def create_env_for_data_processing(
     env_class = get_env_class(env_type=env_type)
 
     # remove possibly redundant values in kwargs
+    # import pdb; pdb.set_trace()
     env_kwargs = deepcopy(env_kwargs)
-    env_kwargs = env_kwargs["env_kwargs"]
+    print("env_kwargs", env_kwargs)
+    # env_kwargs = env_kwargs["env_kwargs"]
     env_kwargs.pop("env_name", None)
     env_kwargs.pop("camera_names", None)
     env_kwargs.pop("camera_height", None)

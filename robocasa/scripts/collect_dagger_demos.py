@@ -614,6 +614,428 @@ def gather_human_only_dagger_demonstrations_as_hdf5(
     return hdf5_path
 
 
+def gather_single_human_only_dagger_demonstrations_as_hdf5(
+    directory, out_dir, env_info, savefilename, excluded_episodes=None
+):
+    """
+    Gathers the demonstrations saved in @directory into a
+    single hdf5 file.
+    The strucure of the hdf5 file is as follows.
+    data (group)
+        date (attribute) - date of collection
+        time (attribute) - time of collection
+        repository_version (attribute) - repository version used during collection
+        env (attribute) - environment name on which demos were collected
+        demo1 (group) - every demonstration has a group
+            model_file (attribute) - model xml string for demonstration
+            states (dataset) - flattened mujoco states
+            actions (dataset) - actions applied during demonstration
+        demo2 (group)
+        ...
+    Args:
+        directory (str): Path to the directory containing raw demonstrations.
+        out_dir (str): Path to where to store the hdf5 file.
+        env_info (str): JSON-encoded string containing environment information,
+            including controller and robot info
+    """
+
+    hdf5_path = os.path.join(out_dir, f"{savefilename}.hdf5")
+    print("Saving hdf5 to", hdf5_path)
+    f = h5py.File(hdf5_path, "w")
+
+    # store some metadata in the attributes of one group
+    grp = f.create_group("data")
+
+    num_eps = 0
+    env_name = None  # will get populated at some point
+
+    for ep_directory in os.listdir(directory):
+        # print("Processing {} ...".format(ep_directory))
+        if (excluded_episodes is not None) and (ep_directory in excluded_episodes):
+            print("\tExcluding this episode!", ep_directory)
+            continue
+
+        state_paths = os.path.join(directory, ep_directory, "state_*.npz")
+        states = []
+        actions = []
+        actions_abs = []
+        acting_agents = []
+        observations = []
+        dones = []
+        rewards = []
+        # success = False
+
+        for state_file in sorted(glob(state_paths)):
+            # [len(np.load(state_file, allow_pickle=True)["states"]) for state_file in sorted(glob(state_paths))]
+            dic = np.load(state_file, allow_pickle=True)
+            env_name = str(dic["env"])
+
+            states.extend(dic["states"])
+            observations.extend(dic["observations"])
+
+            dones.extend(dic["dones"])
+            rewards.extend(dic["rewards"])
+
+            for ai in dic["action_infos"]:
+
+                actions.append(ai["actions"])
+                acting_agents.append(ai["dagger_acting_agent"])
+                # if ai['dagger_acting_agent']
+                if "actions_abs" in ai:
+                    actions_abs.append(ai["actions_abs"])
+            # success = success or dic["successful"]
+
+        # convert list of dict to dict of list for obs dictionaries (for convenient writes to hdf5 dataset)
+        observations = TensorUtils.list_of_flat_dict_to_dict_of_list(observations)
+
+        # list to numpy array
+        for kp in observations:
+            observations[kp] = np.array(observations[kp])
+
+        if len(states) == 0:
+            continue
+
+        # print("Demonstration is successful and has been saved")
+        # Delete the last state. This is because when the DataCollector wrapper
+        # recorded the states and actions, the states were recorded AFTER playing that action,
+        # so we end up with an extra state at the end.
+        del states[-1]
+        assert len(states) == len(actions)
+
+        # Need to parse into a segments corresponding to human acting agents
+        segment_idx = -1
+        segment_idx_to_start_end = {}
+        segment_idx_to_data = {}
+        # pdb.set_trace()
+        # try:
+        for i in range(0, len(acting_agents)):
+            actor = acting_agents[i]
+            if i == 0 and actor == "human":
+                segment_idx += 1
+                segment_idx_to_start_end[segment_idx] = {}
+                segment_idx_to_data[segment_idx] = {}
+                segment_idx_to_start_end[segment_idx]["start"] = i
+            elif i > 0 and actor == "human" and acting_agents[i - 1] != "human":
+                # pdb.set_trace()
+                segment_idx += 1
+                segment_idx_to_start_end[segment_idx] = {}
+                segment_idx_to_data[segment_idx] = {}
+                segment_idx_to_start_end[segment_idx]["start"] = i
+            elif i > 0 and actor != "human" and acting_agents[i - 1] == "human":
+                segment_idx_to_start_end[segment_idx]["end"] = i  # not inclusive
+
+                segmented_obs = {
+                    k: observations[k][
+                        segment_idx_to_start_end[segment_idx][
+                            "start"
+                        ] : segment_idx_to_start_end[segment_idx]["end"]
+                    ]
+                    for k in observations
+                }
+
+                # for key in segmented_obs, if 'image' in key, flip image upside down
+                for key in segmented_obs:
+                    if "image" in key:
+                        for j in range(len(segmented_obs[key])):
+                            segmented_obs[key][j] = np.flipud(segmented_obs[key][j])
+
+                segment_idx_to_data[segment_idx] = {
+                    "states": states[
+                        segment_idx_to_start_end[segment_idx][
+                            "start"
+                        ] : segment_idx_to_start_end[segment_idx]["end"]
+                    ],
+                    "actions": actions[
+                        segment_idx_to_start_end[segment_idx][
+                            "start"
+                        ] : segment_idx_to_start_end[segment_idx]["end"]
+                    ],
+                    "observations": segmented_obs,
+                    "dones": dones[
+                        segment_idx_to_start_end[segment_idx][
+                            "start"
+                        ] : segment_idx_to_start_end[segment_idx]["end"]
+                    ],
+                    "rewards": rewards[
+                        segment_idx_to_start_end[segment_idx][
+                            "start"
+                        ] : segment_idx_to_start_end[segment_idx]["end"]
+                    ],
+                }
+                if len(actions_abs) > 0:
+                    segment_idx_to_data[segment_idx]["actions_abs"] = actions_abs[
+                        segment_idx_to_start_end[segment_idx][
+                            "start"
+                        ] : segment_idx_to_start_end[segment_idx]["end"]
+                    ]
+            elif i == len(acting_agents) - 1 and actor == "human":
+                segment_idx_to_start_end[segment_idx]["end"] = i + 1  # not inclusive
+                segmented_obs = {
+                    k: observations[k][
+                        segment_idx_to_start_end[segment_idx][
+                            "start"
+                        ] : segment_idx_to_start_end[segment_idx]["end"]
+                    ]
+                    for k in observations
+                }
+                # for key in segmented_obs, if 'image' in key, flip image upside down
+                for key in segmented_obs:
+                    if "image" in key:
+                        for j in range(len(segmented_obs[key])):
+                            segmented_obs[key][j] = np.flipud(segmented_obs[key][j])
+
+                segment_idx_to_data[segment_idx] = {
+                    "states": states[
+                        segment_idx_to_start_end[segment_idx][
+                            "start"
+                        ] : segment_idx_to_start_end[segment_idx]["end"]
+                    ],
+                    "actions": actions[
+                        segment_idx_to_start_end[segment_idx][
+                            "start"
+                        ] : segment_idx_to_start_end[segment_idx]["end"]
+                    ],
+                    "observations": segmented_obs,
+                    "dones": dones[
+                        segment_idx_to_start_end[segment_idx][
+                            "start"
+                        ] : segment_idx_to_start_end[segment_idx]["end"]
+                    ],
+                    "rewards": rewards[
+                        segment_idx_to_start_end[segment_idx][
+                            "start"
+                        ] : segment_idx_to_start_end[segment_idx]["end"]
+                    ],
+                }
+                if len(actions_abs) > 0:
+                    segment_idx_to_data[segment_idx]["actions_abs"] = actions_abs[
+                        segment_idx_to_start_end[segment_idx][
+                            "start"
+                        ] : segment_idx_to_start_end[segment_idx]["end"]
+                    ]
+        # except Exception as e:
+        #     pdb.set_trace()
+
+        # pdb.set_trace()
+        if len(segment_idx_to_data) > 0:
+            for seg_idx in segment_idx_to_data:
+                observations = segment_idx_to_data[seg_idx]["observations"]
+                states = segment_idx_to_data[seg_idx]["states"]
+                actions = segment_idx_to_data[seg_idx]["actions"]
+                actions_abs = segment_idx_to_data[seg_idx].get("actions_abs", [])
+                dones = segment_idx_to_data[seg_idx]["dones"]
+                rewards = segment_idx_to_data[seg_idx]["rewards"]
+
+                num_eps += 1
+                ep_data_grp = grp.create_group("demo_{}".format(num_eps))
+
+                # store model xml as an attribute
+                xml_path = os.path.join(directory, ep_directory, "model.xml")
+                with open(xml_path, "r") as f:
+                    xml_str = f.read()
+                ep_data_grp.attrs["model_file"] = xml_str
+
+                # store ep meta as an attribute
+                ep_meta_path = os.path.join(directory, ep_directory, "ep_meta.json")
+                if os.path.exists(ep_meta_path):
+                    with open(ep_meta_path, "r") as f:
+                        ep_meta = f.read()
+                    ep_data_grp.attrs["ep_meta"] = ep_meta
+
+                # write datasets for states and actions
+                # create observations dataset, which is a list of dicts
+                # ep_data_grp.create_dataset("observations", data=np.array(observations))
+                for k in observations:
+                    ep_data_grp.create_dataset(
+                        "obs/{}".format(k),
+                        data=np.array(observations[k]),
+                        compression="gzip",
+                    )
+                ep_data_grp.create_dataset("states", data=np.array(states))
+                ep_data_grp.create_dataset("actions", data=np.array(actions))
+                ep_data_grp.create_dataset("dones", data=np.array(dones))
+                ep_data_grp.create_dataset("rewards", data=np.array(rewards))
+                if len(actions_abs) > 0:
+                    print(np.array(actions_abs).shape)
+                    ep_data_grp.create_dataset(
+                        "actions_abs", data=np.array(actions_abs)
+                    )
+
+        else:
+            # pass
+            print(
+                f"Demonstration {ep_directory} had no human actions and has NOT been saved"
+            )
+
+    print("{} successful demos so far".format(num_eps))
+
+    if num_eps == 0:
+        f.close()
+        return
+
+    # write dataset attributes (metadata)
+    now = datetime.datetime.now()
+    grp.attrs["date"] = "{}-{}-{}".format(now.month, now.day, now.year)
+    grp.attrs["time"] = "{}:{}:{}".format(now.hour, now.minute, now.second)
+    grp.attrs["robocasa_version"] = robocasa.__version__
+    grp.attrs["robosuite_version"] = robosuite.__version__
+    grp.attrs["mujoco_version"] = mujoco.__version__
+    grp.attrs["env"] = env_name
+    grp.attrs["env_info"] = env_info
+
+    f.close()
+
+    return hdf5_path
+
+
+def gather_single_combined_demonstrations_as_hdf5(
+    directory, out_dir, env_info, savefilename, excluded_episodes=None
+):
+    """
+    Gathers the demonstrations saved in @directory into a
+    single hdf5 file.
+    The strucure of the hdf5 file is as follows.
+    data (group)
+        date (attribute) - date of collection
+        time (attribute) - time of collection
+        repository_version (attribute) - repository version used during collection
+        env (attribute) - environment name on which demos were collected
+        demo1 (group) - every demonstration has a group
+            model_file (attribute) - model xml string for demonstration
+            states (dataset) - flattened mujoco states
+            actions (dataset) - actions applied during demonstration
+        demo2 (group)
+        ...
+    Args:
+        directory (str): Path to the directory containing raw demonstrations.
+        out_dir (str): Path to where to store the hdf5 file.
+        env_info (str): JSON-encoded string containing environment information,
+            including controller and robot info
+    """
+
+    hdf5_path = os.path.join(out_dir, f"{savefilename}.hdf5")
+    print("Saving hdf5 to", hdf5_path)
+    f = h5py.File(hdf5_path, "w")
+
+    # store some metadata in the attributes of one group
+    grp = f.create_group("data")
+
+    num_eps = 0
+    env_name = None  # will get populated at some point
+
+    for ep_directory in os.listdir(directory):
+        # print("Processing {} ...".format(ep_directory))
+        if (excluded_episodes is not None) and (ep_directory in excluded_episodes):
+            # print("\tExcluding this episode!")
+            continue
+
+        state_paths = os.path.join(directory, ep_directory, "state_*.npz")
+        states = []
+        actions = []
+        actions_abs = []
+        observations = []
+        dones = []
+        rewards = []
+
+        # success = False
+
+        for state_file in sorted(glob(state_paths)):
+            dic = np.load(state_file, allow_pickle=True)
+            env_name = str(dic["env"])
+
+            observations.extend(dic["observations"])
+            states.extend(dic["states"])
+            dones.extend(dic["dones"])
+            rewards.extend(dic["rewards"])
+            for ai in dic["action_infos"]:
+                actions.append(ai["actions"])
+                if "actions_abs" in ai:
+                    actions_abs.append(ai["actions_abs"])
+            # success = success or dic["successful"]
+
+        # convert list of dict to dict of list for obs dictionaries (for convenient writes to hdf5 dataset)
+        observations = TensorUtils.list_of_flat_dict_to_dict_of_list(observations)
+
+        # list to numpy array
+        for kp in observations:
+            observations[kp] = np.array(observations[kp])
+
+        # for key in segmented_obs, if 'image' in key, flip image upside down
+        for key in observations:
+            if "image" in key:
+                # flip every element in the list of images upside down
+                for i in range(len(observations[key])):
+                    observations[key][i] = np.flipud(observations[key][i])
+
+        if len(states) == 0:
+            continue
+
+        # # Add only the successful demonstration to dataset
+        # if success:
+
+        # print("Demonstration is successful and has been saved")
+        # Delete the last state. This is because when the DataCollector wrapper
+        # recorded the states and actions, the states were recorded AFTER playing that action,
+        # so we end up with an extra state at the end.
+        del states[-1]
+        assert len(states) == len(actions)
+
+        num_eps += 1
+        ep_data_grp = grp.create_group("demo_{}".format(num_eps))
+
+        # store model xml as an attribute
+        xml_path = os.path.join(directory, ep_directory, "model.xml")
+        with open(xml_path, "r") as f:
+            xml_str = f.read()
+        ep_data_grp.attrs["model_file"] = xml_str
+
+        # store ep meta as an attribute
+        ep_meta_path = os.path.join(directory, ep_directory, "ep_meta.json")
+        if os.path.exists(ep_meta_path):
+            with open(ep_meta_path, "r") as f:
+                ep_meta = f.read()
+            ep_data_grp.attrs["ep_meta"] = ep_meta
+
+        # write datasets for states and actions
+        for k in observations:
+            ep_data_grp.create_dataset(
+                "obs/{}".format(k),
+                data=np.array(observations[k]),
+                compression="gzip",
+            )
+        ep_data_grp.create_dataset("states", data=np.array(states))
+        ep_data_grp.create_dataset("actions", data=np.array(actions))
+        ep_data_grp.create_dataset("dones", data=np.array(dic["dones"]))
+        ep_data_grp.create_dataset("rewards", data=np.array(dic["rewards"]))
+        if len(actions_abs) > 0:
+            print(np.array(actions_abs).shape)
+            ep_data_grp.create_dataset("actions_abs", data=np.array(actions_abs))
+
+        # else:
+        #     pass
+        #     # print("Demonstration is unsuccessful and has NOT been saved")
+
+    print("{} successful demos so far".format(num_eps))
+
+    if num_eps == 0:
+        f.close()
+        return
+
+    # write dataset attributes (metadata)
+    now = datetime.datetime.now()
+    grp.attrs["date"] = "{}-{}-{}".format(now.month, now.day, now.year)
+    grp.attrs["time"] = "{}:{}:{}".format(now.hour, now.minute, now.second)
+    grp.attrs["robocasa_version"] = robocasa.__version__
+    grp.attrs["robosuite_version"] = robosuite.__version__
+    grp.attrs["mujoco_version"] = mujoco.__version__
+    grp.attrs["env"] = env_name
+    grp.attrs["env_info"] = env_info
+
+    f.close()
+
+    return hdf5_path
+
+
 if __name__ == "__main__":
     # Arguments
     parser = argparse.ArgumentParser()

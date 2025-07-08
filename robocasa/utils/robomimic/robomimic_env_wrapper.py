@@ -413,6 +413,13 @@ class EnvRobocasa:
         is_v1 = robosuite.__version__.split(".")[0] == "1"
         has_camera = len(camera_names) > 0
 
+        # set camera names
+        camera_names = [
+            "robot0_agentview_left",
+            "robot0_agentview_right",
+            "robot0_eye_in_hand",
+        ]
+
         new_kwargs = {
             "reward_shaping": reward_shaping,
         }
