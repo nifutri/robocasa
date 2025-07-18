@@ -271,6 +271,9 @@ def create_env_for_data_processing(
     env_kwargs = env_meta["env_kwargs"]
     env_class = get_env_class(env_type=env_type)
 
+    if ("env_name" in env_kwargs):
+        env_kwargs.pop("env_name", None)
+
     # remove possibly redundant values in kwargs
     # env_kwargs = deepcopy(env_kwargs)
     # env_kwargs = env_kwargs["env_kwargs"]
@@ -285,7 +288,6 @@ def create_env_for_data_processing(
     if seed is not None:
         env_kwargs["seed"] = seed
 
-    print("env_kwargs", env_kwargs)
 
     env = env_class.create_for_data_processing(
         env_name=env_name,
@@ -333,6 +335,9 @@ def create_env_for_data_processing(
     env_type = get_env_type(env_meta=env_meta)
     env_kwargs = env_meta["env_kwargs"]
     env_class = get_env_class(env_type=env_type)
+
+    if ("env_name" in env_kwargs):
+        env_kwargs.pop("env_name", None)
 
     # remove possibly redundant values in kwargs
     # env_kwargs = deepcopy(env_kwargs)

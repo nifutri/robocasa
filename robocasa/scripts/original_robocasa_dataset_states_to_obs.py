@@ -13,6 +13,7 @@ import queue
 import time
 import traceback
 import torch
+import time
 
 import robocasa.utils.robomimic.robomimic_tensor_utils as TensorUtils
 import robocasa.utils.robomimic.robomimic_robocasa_replay_env_utils as EnvUtils
@@ -331,9 +332,10 @@ def write_traj_to_file_replay_robocasa_demos(
     data_grp = f_out.create_group("data")
     start_time = time.time()
     num_processed = 0
+    first_over = False
 
     try:
-        while (total_run.value < (processes)) or not mul_queue.empty():
+        while (total_run.value <= (processes)) or not mul_queue.empty():
             if not mul_queue.empty():
                 num_processed = num_processed + 1
                 item = mul_queue.get()
@@ -345,6 +347,7 @@ def write_traj_to_file_replay_robocasa_demos(
                     ep_data_grp.create_dataset(
                         "actions", data=np.array(traj["actions"])
                     )
+                    print (np.array(traj["actions"]))
                     ep_data_grp.create_dataset(
                         "actions_abs", data=np.array(traj["actions_abs"])
                     )
@@ -425,8 +428,18 @@ def write_traj_to_file_replay_robocasa_demos(
                         process_num,
                         total_run.value,
                         (time.time() - start_time) / num_processed,
-                    )
-                )
+                    ))
+            # the process number indicates that programme execution is over
+            # due to race conditions - do not directly exit but add another wait,...
+            if (not (total_run.value < (processes)) and mul_queue.empty()):
+                if not(first_over):
+                    print("First process has finished, now waiting for others")
+                    first_over = True
+                    time.sleep(5)
+                else:
+                    break
+                
+                
     except KeyboardInterrupt:
         print("Control C pressed. Closing File and ending \n\n\n\n\n\n\n")
 
@@ -609,9 +622,11 @@ def extract_multiple_trajectories_with_error(
         demos = demos[: args.n]
 
     ind = retrieve_new_index(process_num, current_work_array, work_queue, lock)
-    while (not work_queue.empty()) and (ind != -1):
+
+    # while (not work_queue.empty()) and (ind != -1):
+    while (ind != -1):
         try:
-            # print("Running {} index".format(ind))
+            print("Running {} index".format(ind))
             ep = demos[ind]
 
             # prepare initial state to reload from
@@ -625,7 +640,6 @@ def extract_multiple_trajectories_with_error(
             # extract obs, rewards, dones
             actions = f["data/{}/actions".format(ep)][()]
             # actions_abs = f["data/{}/actions_abs".format(ep)][()]
-
             traj = extract_trajectory(
                 env=env,
                 initial_state=initial_state,
@@ -657,7 +671,7 @@ def extract_multiple_trajectories_with_error(
 
             # IMPORTANT: keep name of group the same as source file, to make sure that filter keys are
             #            consistent as well
-            # print("(process {}): ADD TO QUEUE index {}".format(process_num, ind))
+            print("(process {}): ADD TO QUEUE index {}".format(process_num, ind))
             mul_queue.put([ep, traj, process_num])
 
             ind = retrieve_new_index(process_num, current_work_array, work_queue, lock)
@@ -726,6 +740,7 @@ def dataset_states_to_obs_multiprocessing(args):
     f.close()
 
     env_meta = DatasetUtils.get_env_metadata_from_dataset(dataset_path=args.dataset)
+    # num_processes = min(args.num_procs, num_demos)
     num_processes = args.num_procs
 
     index = multiprocessing.Value("i", 0)

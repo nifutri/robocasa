@@ -309,122 +309,6 @@ def gather_demonstrations_as_hdf5(directory, out_dir, env_info, excluded_episode
 
     return hdf5_path
 
-def gather_single_demonstrations_as_hdf5(directory, out_dir, env_info):
-    """
-    Gathers the demonstrations saved in @directory into a
-    single hdf5 file.
-    The strucure of the hdf5 file is as follows.
-    data (group)
-        date (attribute) - date of collection
-        time (attribute) - time of collection
-        repository_version (attribute) - repository version used during collection
-        env (attribute) - environment name on which demos were collected
-        demo1 (group) - every demonstration has a group
-            model_file (attribute) - model xml string for demonstration
-            states (dataset) - flattened mujoco states
-            actions (dataset) - actions applied during demonstration
-        demo2 (group)
-        ...
-    Args:
-        directory (str): Path to the directory containing a single raw demonstrations.
-        out_dir (str): Path to where to store the hdf5 file.
-        env_info (str): JSON-encoded string containing environment information,
-            including controller and robot info
-    """
-
-    hdf5_path = os.path.join(out_dir, "demo.hdf5")
-    print("Saving hdf5 to", hdf5_path)
-    f = h5py.File(hdf5_path, "w")
-
-    # store some metadata in the attributes of one group
-    grp = f.create_group("data")
-
-    num_eps = 0
-    env_name = None  # will get populated at some point
-
-
-    directory = [directory]
-
-    for ep_directory in directory:
-
-        state_paths = os.path.join(ep_directory, "state_*.npz")
-        states = []
-        actions = []
-        actions_abs = []
-        # success = False
-
-        for state_file in sorted(glob(state_paths)):
-            dic = np.load(state_file, allow_pickle=True)
-            env_name = str(dic["env"])
-
-            states.extend(dic["states"])
-            for ai in dic["action_infos"]:
-                actions.append(ai["actions"])
-                if "actions_abs" in ai:
-                    actions_abs.append(ai["actions_abs"])
-            # success = success or dic["successful"]
-
-        if len(states) == 0:
-            continue
-
-        # # Add only the successful demonstration to dataset
-        # if success:
-
-        # print("Demonstration is successful and has been saved")
-        # Delete the last state. This is because when the DataCollector wrapper
-        # recorded the states and actions, the states were recorded AFTER playing that action,
-        # so we end up with an extra state at the end.
-        del states[-1]
-        assert len(states) == len(actions)
-
-        num_eps += 1
-        ep_data_grp = grp.create_group("demo_{}".format(num_eps))
-
-        # store model xml as an attribute
-        xml_path = os.path.join(ep_directory, "model.xml")
-        with open(xml_path, "r") as f:
-            xml_str = f.read()
-        ep_data_grp.attrs["model_file"] = xml_str
-
-        # store ep meta as an attribute
-        ep_meta_path = os.path.join(ep_directory, "ep_meta.json")
-        if os.path.exists(ep_meta_path):
-            with open(ep_meta_path, "r") as f:
-                ep_meta = f.read()
-            ep_data_grp.attrs["ep_meta"] = ep_meta
-
-        # write datasets for states and actions
-        ep_data_grp.create_dataset("states", data=np.array(states))
-        ep_data_grp.create_dataset("actions", data=np.array(actions))
-        if len(actions_abs) > 0:
-            print(np.array(actions_abs).shape)
-            ep_data_grp.create_dataset("actions_abs", data=np.array(actions_abs))
-
-        # else:
-        #     pass
-        #     # print("Demonstration is unsuccessful and has NOT been saved")
-
-    print("{} successful demos so far".format(num_eps))
-
-    if num_eps == 0:
-        f.close()
-        return
-
-    # write dataset attributes (metadata)
-    now = datetime.datetime.now()
-    grp.attrs["date"] = "{}-{}-{}".format(now.month, now.day, now.year)
-    grp.attrs["time"] = "{}:{}:{}".format(now.hour, now.minute, now.second)
-    grp.attrs["robocasa_version"] = robocasa.__version__
-    grp.attrs["robosuite_version"] = robosuite.__version__
-    grp.attrs["mujoco_version"] = mujoco.__version__
-    grp.attrs["env"] = env_name
-    grp.attrs["env_info"] = env_info
-
-    f.close()
-
-    return hdf5_path
-
-
 
 def gather_dagger_demonstrations_as_hdf5(
     directory, out_dir, env_info, excluded_episodes=None
@@ -705,115 +589,115 @@ if __name__ == "__main__":
     parser.add_argument("--generative_textures", action="store_true")
     args = parser.parse_args()
 
-    # Get controller config
-    # controller_config = load_controller_config(default_controller=args.controller)
-    controller_config = load_composite_controller_config(
-        controller=args.controller,
-        robot=args.robots if isinstance(args.robots, str) else args.robots[0],
-    )
+    # # Get controller config
+    # # controller_config = load_controller_config(default_controller=args.controller)
+    # controller_config = load_composite_controller_config(
+    #     controller=args.controller,
+    #     robot=args.robots if isinstance(args.robots, str) else args.robots[0],
+    # )
 
-    if controller_config["type"] == "WHOLE_BODY_MINK_IK":
-        # mink-speicific import. requires installing mink
-        from robosuite.examples.third_party_controller.mink_controller import (
-            WholeBodyMinkIK,
-        )
+    # if controller_config["type"] == "WHOLE_BODY_MINK_IK":
+    #     # mink-speicific import. requires installing mink
+    #     from robosuite.examples.third_party_controller.mink_controller import (
+    #         WholeBodyMinkIK,
+    #     )
 
-    env_name = args.environment
+    # env_name = args.environment
 
-    # Create argument configuration
-    config = {
-        "env_name": env_name,
-        "robots": args.robots,
-        "controller_configs": controller_config,
-    }
+    # # Create argument configuration
+    # config = {
+    #     "env_name": env_name,
+    #     "robots": args.robots,
+    #     "controller_configs": controller_config,
+    # }
 
-    if args.generative_textures is True:
-        config["generative_textures"] = "100p"
+    # if args.generative_textures is True:
+    #     config["generative_textures"] = "100p"
 
-    # Check if we're using a multi-armed environment and use env_configuration argument if so
-    if "TwoArm" in env_name:
-        config["env_configuration"] = args.config
+    # # Check if we're using a multi-armed environment and use env_configuration argument if so
+    # if "TwoArm" in env_name:
+    #     config["env_configuration"] = args.config
 
-    # Mirror actions if using a kitchen environment
-    if env_name in ["Lift"]:  # add other non-kitchen tasks here
-        if args.obj_groups is not None:
-            print(
-                "Specifying 'obj_groups' in non-kitchen environment does not have an effect."
-            )
-        mirror_actions = False
-        if args.camera is None:
-            args.camera = "agentview"
-        # special logic: "free" camera corresponds to Null camera
-        elif args.camera == "free":
-            args.camera = None
-    else:
-        mirror_actions = True
-        config["layout_ids"] = args.layout
-        config["style_ids"] = args.style
-        ### update config for kitchen envs ###
-        if args.obj_groups is not None:
-            config.update({"obj_groups": args.obj_groups})
-        if args.camera is None:
-            args.camera = "robot0_frontview"
-        # special logic: "free" camera corresponds to Null camera
-        elif args.camera == "free":
-            args.camera = None
+    # # Mirror actions if using a kitchen environment
+    # if env_name in ["Lift"]:  # add other non-kitchen tasks here
+    #     if args.obj_groups is not None:
+    #         print(
+    #             "Specifying 'obj_groups' in non-kitchen environment does not have an effect."
+    #         )
+    #     mirror_actions = False
+    #     if args.camera is None:
+    #         args.camera = "agentview"
+    #     # special logic: "free" camera corresponds to Null camera
+    #     elif args.camera == "free":
+    #         args.camera = None
+    # else:
+    #     mirror_actions = True
+    #     config["layout_ids"] = args.layout
+    #     config["style_ids"] = args.style
+    #     ### update config for kitchen envs ###
+    #     if args.obj_groups is not None:
+    #         config.update({"obj_groups": args.obj_groups})
+    #     if args.camera is None:
+    #         args.camera = "robot0_frontview"
+    #     # special logic: "free" camera corresponds to Null camera
+    #     elif args.camera == "free":
+    #         args.camera = None
 
-        config["translucent_robot"] = True
+    #     config["translucent_robot"] = True
 
-        # by default use obj instance split A
-        config["obj_instance_split"] = "A"
-        # config["obj_instance_split"] = None
-        # config["obj_registries"] = ("aigen",)
+    #     # by default use obj instance split A
+    #     config["obj_instance_split"] = "A"
+    #     # config["obj_instance_split"] = None
+    #     # config["obj_registries"] = ("aigen",)
 
-    # Create environment
-    env = robosuite.make(
-        **config,
-        has_renderer=True,
-        has_offscreen_renderer=False,
-        render_camera=args.camera,
-        ignore_done=True,
-        use_camera_obs=False,
-        control_freq=20,
-        renderer=args.renderer,
-    )
+    # # Create environment
+    # env = robosuite.make(
+    #     **config,
+    #     has_renderer=True,
+    #     has_offscreen_renderer=False,
+    #     render_camera=args.camera,
+    #     ignore_done=True,
+    #     use_camera_obs=False,
+    #     control_freq=20,
+    #     renderer=args.renderer,
+    # )
 
-    # Wrap this with visualization wrapper
-    env = VisualizationWrapper(env)
+    # # Wrap this with visualization wrapper
+    # env = VisualizationWrapper(env)
 
-    # Grab reference to controller config and convert it to json-encoded string
-    # pdb.set_trace()
-    env_info = json.dumps(config)
+    # # Grab reference to controller config and convert it to json-encoded string
+    # # pdb.set_trace()
+    # env_info = json.dumps(config)
 
     t_now = time.time()
     time_str = datetime.datetime.fromtimestamp(t_now).strftime("%Y-%m-%d-%H-%M-%S")
 
-    if not args.debug:
-        # wrap the environment with data collection wrapper
-        tmp_directory = "/tmp/{}".format(time_str)
-        env = DataCollectionWrapper(env, tmp_directory)
+    # if not args.debug:
+    #     # wrap the environment with data collection wrapper
+    #     tmp_directory = "/tmp/{}".format(time_str)
+    #     env = DataCollectionWrapper(env, tmp_directory)
 
-    # initialize device
-    if args.device == "keyboard":
-        from robosuite.devices import Keyboard
+    # # initialize device
+    # if args.device == "keyboard":
+    #     from robosuite.devices import Keyboard
 
-        device = Keyboard(
-            env=env,
-            pos_sensitivity=args.pos_sensitivity,
-            rot_sensitivity=args.rot_sensitivity,
-        )
-    elif args.device == "spacemouse":
-        from robosuite.devices import SpaceMouse
+    #     device = Keyboard(
+    #         env=env,
+    #         pos_sensitivity=args.pos_sensitivity,
+    #         rot_sensitivity=args.rot_sensitivity,
+    #     )
+    # elif args.device == "spacemouse":
+    #     from robosuite.devices import SpaceMouse
 
-        device = SpaceMouse(
-            env=env,
-            pos_sensitivity=args.pos_sensitivity,
-            rot_sensitivity=args.rot_sensitivity,
-            vendor_id=macros.SPACEMOUSE_VENDOR_ID,
-            product_id=macros.SPACEMOUSE_PRODUCT_ID,
-        )
-    else:
-        raise ValueError
+    #     device = SpaceMouse(
+    #         env=env,
+    #         pos_sensitivity=args.pos_sensitivity,
+    #         rot_sensitivity=args.rot_sensitivity,
+    #         vendor_id=macros.SPACEMOUSE_VENDOR_ID,
+    #         product_id=macros.SPACEMOUSE_PRODUCT_ID,
+    #     )
+    # else:
+    #     raise ValueError
 
     # make a new timestamped directory
     new_dir = os.path.join(args.directory, time_str)
@@ -821,25 +705,42 @@ if __name__ == "__main__":
 
     excluded_eps = []
 
-    # collect demonstrations
-    while True:
-        print()
-        ep_directory, discard_traj = collect_human_trajectory(
-            env,
-            device,
-            args.arm,
-            args.config,
-            mirror_actions,
-            render=(args.renderer != "mjviewer"),
-            max_fr=args.max_fr,
-        )
+    general_path = '/home/niklasfunk/Code_robocasa/robocasa_dagger/diffusion_policy/data/outputs/ST_OOD_DAgger_train_diffusion_unet_clip_OpenSingleDoor/eval_base_policy/ep_1752086386_3266144/'
 
-        print("Keep traj?", not discard_traj)
+    json_path = os.path.join(general_path, 'a/ep_meta.json')
 
-        if not args.debug:
-            if discard_traj and ep_directory is not None:
-                excluded_eps.append(ep_directory.split("/")[-1])
-            hdf5_path = gather_demonstrations_as_hdf5(
-                tmp_directory, new_dir, env_info, excluded_episodes=excluded_eps
-            )
-            convert_to_robomimic_format(hdf5_path)
+    # load a json
+    with open(json_path, 'r') as f:
+        env_info = json.load(f)
+        if "layout_id" in env_info:
+            id = env_info.pop('layout_id')
+            env_info['layout_ids'] = id
+        if "style_id" in env_info:
+            id = env_info.pop('style_id')
+            env_info['style_ids'] = id
+        env_info = json.dumps(env_info)
+
+    tmp_directory = os.path.join(general_path)
+
+    # # collect demonstrations
+    # while True:
+    #     print()
+    #     ep_directory, discard_traj = collect_human_trajectory(
+    #         env,
+    #         device,
+    #         args.arm,
+    #         args.config,
+    #         mirror_actions,
+    #         render=(args.renderer != "mjviewer"),
+    #         max_fr=args.max_fr,
+    #     )
+
+    #     print("Keep traj?", not discard_traj)
+
+        # if not args.debug:
+        #     if discard_traj and ep_directory is not None:
+        #         excluded_eps.append(ep_directory.split("/")[-1])
+    hdf5_path = gather_demonstrations_as_hdf5(
+        tmp_directory, new_dir, env_info, excluded_episodes=excluded_eps
+    )
+    convert_to_robomimic_format(hdf5_path)
